@@ -27,6 +27,11 @@ const userSchema = new Schema(
       required:[true, 'Password is required']
    },
 
+   profilePic:{
+        type: String, // optional field
+        default: "",
+    },
+
    role:{
       type: String,
       enum: ["student", "organizer", "admin"],
@@ -45,7 +50,11 @@ const userSchema = new Schema(
       required: true,
       min: 1,
       max: 4,
-   }
+   },
+
+   refreshToken:{
+        type:String
+    }
 },
 {
     timestamps:true
