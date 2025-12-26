@@ -3,12 +3,18 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js"
+import { passwordValidator } from "../utils/passwordValidator.js";
 import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId)=>{
 
     try {
         const user= await User.findById(userId);
+
+        if (!user) {
+         throw new ApiError(404, "User not found");
+        }
+
         const accessToken = user.generateAccessToken();
         const refreshToken = user.generateRefreshToken();
 
@@ -37,10 +43,10 @@ for (let key in req.body) {
 }
 
   // const { username, email, password } = req.body;
-  const {username,email , password, role, departement, year} = normalizedBody;
+  const {username,email , password, role, department, year} = normalizedBody;
     
  if (
-  [username, email, password, role, departement].some(
+  [username, email, password, role, department].some(
     field => !field || field.trim() === ""
   ) ||
   !year
@@ -48,10 +54,18 @@ for (let key in req.body) {
   throw new ApiError(400, "All fields are required");
 }
  
+  if (!passwordValidator(password)) {
+    throw new ApiError(
+      400,
+      "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character"
+    );
+  }
+
 // if user exists already
 const existingUser = await User.findOne(
   {
-    $or:[{username},{email}]
+    $or:[{username:username.toLowerCase()},
+         {email:email.toLowerCase()}]
   }
 )
 
@@ -78,12 +92,12 @@ if(! uploadedProfilePic?.url){
 
 // create user
 const user = await User.create ({
-  username: username.toLowerCase(),
-  email:email.toLowerCase(),
+  username: username.trim().toLowerCase(),
+  email: email.trim().toLowerCase(),
   password,
   profilePic:uploadedProfilePic.url,
   role,
-  departement,
+  department,
   year
 })
 
@@ -148,11 +162,13 @@ const loginUser = asyncHandler(async(req,res)=>{
       200,
       {
         user: loggedInUser,
+        accessToken,
       },
       "Logged in successfully"
     )
   );
 });  
+
 
 
 const logoutUser = asyncHandler(async(req,res)=>{
@@ -184,25 +200,142 @@ const logoutUser = asyncHandler(async(req,res)=>{
 
 
 
-const changeCurrentPassword = asyncHandler (async (req,res)=>{
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword, confirmPassword } = req.body;
 
-})
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  if (oldPassword === newPassword) {
+    throw new ApiError(400, "New password must be different from old password");
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "New password and confirm password should be same");
+  }
+
+  if (!passwordValidator(newPassword)) {
+    throw new ApiError(
+      400,
+      "Password must be at least 8 characters long and include uppercase, lowercase, number, and special character"
+    );
+  }
+
+  const user = await User.findById(req.user?._id);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const isValid = await user.isPasswordCorrect(oldPassword);
+  if (!isValid) {
+    throw new ApiError(400, "Invalid old password");
+  }
+
+  user.password = newPassword;
+  user.refreshToken = undefined; // logout all devices
+  await user.save();
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax"
+  };
+
+  res.clearCookie("accessToken", cookieOptions);
+  res.clearCookie("refreshToken", cookieOptions);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "Password changed successfully"));
+});
 
 
 
 const getCurrentUser = asyncHandler (async (req,res)=>{
 
+  const user = await User.findById(req.user?._id)
+              .select("-password -refreshToken");
+
+   if(! user){
+    throw new ApiError(404, "User does not exist")
+   }
+
+   return res
+  .status(200)
+  .json(new ApiResponse(200, user, "User found successfully !!"))
 })
 
 
 
-const profilePic = asyncHandler (async (req,res)=>{
+const updateProfilePic = asyncHandler (async (req,res)=>{
+
+  const profilePicPath = req.file?.path
+
+  if(! profilePicPath){
+    throw new ApiError(400,"Profile picture is missing")
+  }
+
+  const uploadedProfilePic = await uploadToCloudinary(profilePicPath);
+
+    if (!uploadedProfilePic?.url) {
+    throw new ApiError(500, "Profile picture upload failed");
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set:{
+       profilePic: uploadedProfilePic.url
+      }
+    },{
+      new:true
+    }
+  ).select("-password -refreshToken")
+
+    if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+   return res
+  .status(200)
+  .json(new ApiResponse(200, user, "Profile picture updated successfully"));
 
 })
 
 
 
-export { generateAccessAndRefreshToken, loginUser, logoutUser, changeCurrentPassword, getCurrentUser, profilePic}
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { username, email, department, year } = req.body;
+
+  if (!username || !email || !department || !year) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        username: username.toLowerCase(),
+        email: email.toLowerCase(),
+        department,
+        year
+      }
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, updatedUser, "Account details updated successfully")
+  );
+});
+
+
+export { generateAccessAndRefreshToken, loginUser, logoutUser, changeCurrentPassword, getCurrentUser, updateProfilePic, updateAccountDetails}
 
 // generate access and refresh token
 // register user
