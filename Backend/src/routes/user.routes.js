@@ -20,4 +20,4 @@ router.route("/change-profilePic")
 router.route("/update_account_details").patch(verifyJWT,updateAccountDetails);
 router.route("/me").get(verifyJWT, getCurrentUser);
 
-export default router;
+export {router};

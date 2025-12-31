@@ -4,51 +4,38 @@ import {Registration} from "../models/registration.model.js"
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js"
 import { passwordValidator } from "../utils/passwordValidator.js";
-import jwt from "jsonwebtoken";
 
 
 
-const createRegistration = asyncHandler (async (req,res)=>{
+const createRegistration = asyncHandler(async (req, res) => {
+  const { eventId, status, qrCodeData } = req.body;
+  const userId = req.user?._id;
 
-    const{ eventId, userId, registrationTime,status, qrCodeData, checkedIn, checkInTime} = req.body;
+  if (!eventId || !status) {
+    throw new ApiError(400, "eventId and status are required");
+  }
 
-    // Basic validation
-    if(! eventId || ! userId || ! status){
-        throw new ApiError(400,"eventId, userId and status are required")
-    }
+  const existingRegistration = await Registration.findOne({
+    eventId,
+    userId,
+  });
 
-    //prevent duplicate registration
-    const existingUserRegistration = await Registration.findOne({
-        eventId,
-        userId
-    })
+  if (existingRegistration) {
+    throw new ApiError(409, "User already registered");
+  }
 
-    if(existingUserRegistration){
-        throw new ApiError(409, "User already registered")
-    }
+  const registration = await Registration.create({
+    eventId,
+    userId,
+    status,
+    qrCodeData,
+    registrationTime: new Date(),
+  });
 
-    //create registration
-    const registration = await Registration.create({
-        eventId,
-        userId,
-        registrationTime: registrationTime || new Date(),
-        status,
-        qrCodeData,
-        checkedIn: checkedIn || false,
-        checkInTime: checkInTime || null,
-    })
-
-      //safety check
-    if(! registration){
-        throw new ApiError(400,"Failed to create registration")
-    }
-  
-    return res
-    .status(201)
-    .json(new ApiResponse
-        (201,registration,"Registration created successfully !!")
-    )
-})
+  return res.status(201).json(
+    new ApiResponse(201, registration, "Registration created successfully")
+  );
+});
 
 
 
@@ -67,64 +54,85 @@ const getMyRegistrations =asyncHandler(async(req,res)=>{
     }
 
     return res
-    .status(201)
-    .json(new ApiResponse
-        (201,myRegistrations,"Your Registrations fetched successfully")
-    )
-})
-
-
-
-const unregisterFromEvent = asyncHandler (async(req,res)=>{
-  
-    const{eventId}= req.params;
-    const userId = req.user?._id;
-
-    if(! eventId){
-        throw new ApiError(400, "Event Id is required")
-    }
-
-    if(! userId){
-        throw new ApiError(401, "Unauthorized user")
-    }
-
-    const registeredEvent = await Registration.findOne(
-        {eventId,userId }
-    )
-
-    if(! registeredEvent){
-        throw new ApiError(404, "You are not registered for this event ")
-    }
-
-    if (registeredEvent.checkedIn) {
-      throw new ApiError(400, "Cannot unregister after check-in");
-    }
-
-    await Registration.findByIdAndDelete(registeredEvent._id)
-
-     return res
     .status(200)
     .json(new ApiResponse
-        (200,null,"Successfully unregistered from event")
+        (200,myRegistrations,"Your Registrations fetched successfully")
     )
 })
+
+
+
+const unregisterFromEvent = asyncHandler(async (req, res) => {
+  const { eventId } = req.params;
+  const userId = req.user?._id;
+
+  if (!eventId) {
+    throw new ApiError(400, "Event ID is required");
+  }
+
+  if (!userId) {
+    throw new ApiError(401, "Unauthorized user");
+  }
+
+  const registration = await Registration.findOne({ eventId, userId });
+
+  if (!registration) {
+    throw new ApiError(404, "You are not registered for this event");
+  }
+
+  if (registration.checkedIn) {
+    throw new ApiError(400, "Cannot unregister after check-in");
+  }
+
+  await Registration.deleteOne({ _id: registration._id });
+
+  return res.status(200).json(
+    new ApiResponse(200, null, "Successfully unregistered from event")
+  );
+});
 
 
 
 const getEventRegistrations = asyncHandler(async(req,res)=>{
-  
-})
 
+    const{eventId}=req.params;
+    const admin = req.user;
 
+    if(admin.role !=="admin" ){
+        throw new ApiError(403, "Only admin can view registrations");
+    }
 
-const deleteRegistration = asyncHandler(async(req,res)=>{
+    if(! eventId){
+        throw new ApiError(400, "Event Id is required");
+    }
+
+    const registrations = await Registration.find({eventId})
+                          .populate("userId","username email profilePic")
+                          .select("userId registrationTime")
+                          .sort({registrationTime:-1});
+
+    if(! registrations.length){
+        throw new ApiError(404, "No registrations found for this event");
+    }
+
+    const formattedData = registrations.map(reg=>({
+        username:reg.userId.username,
+        profilePic:reg.userId.profilePic,
+        registeredAt: reg.registrationTime,
+    }))
+
+  return res
+  .status(200)
+  .json(new ApiResponse
+        (200,formattedData,"All registrations for this event")
+    )
 
 })
 
 
 export{
-    createRegistration,getMyRegistrations,unregisterFromEvent,getEventRegistrations,
-deleteRegistration }
+    createRegistration,getMyRegistrations,unregisterFromEvent,getEventRegistrations
+ }
 
 
 //create registration form

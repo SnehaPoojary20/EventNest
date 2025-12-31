@@ -6,14 +6,12 @@ const registrationSchema= new Schema(
     eventId:{
        type:Schema.Types.ObjectId,
        required:true,
-       unique:true,
        ref:"Event"
      },
 
     userId:{
        type:Schema.Types.ObjectId,
        required:true,
-       unique:true,
        ref:"User"
      },
 
@@ -39,7 +37,6 @@ const registrationSchema= new Schema(
     checkedIn:{
         type:Boolean,
         default:false,
-        required:true,
      },
 
      checkInTime: {
@@ -51,5 +48,8 @@ const registrationSchema= new Schema(
     timestamps:true
  }
 )
+
+// One user can register only once per event
+registrationSchema.index({ eventId: 1, userId: 1 }, { unique: true });
 
 export const registration = mongoose.model("Registration", registrationSchema);
