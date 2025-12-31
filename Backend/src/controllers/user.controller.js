@@ -43,10 +43,10 @@ for (let key in req.body) {
 }
 
   // const { username, email, password } = req.body;
-  const {username,email , password, role, department, year} = normalizedBody;
+ const { username, email, password, role, department, year, organization } = normalizedBody;
     
  if (
-  [username, email, password, role, department].some(
+  [username, email, password, role, department, organization].some(
     field => !field || field.trim() === ""
   ) ||
   !year
@@ -97,6 +97,7 @@ const user = await User.create ({
   password,
   profilePic:uploadedProfilePic.url,
   role,
+  organization: organization.trim(),
   department,
   year
 })
@@ -313,6 +314,9 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   if(req.body.email)updates.email=req.body.email.toLowerCase();
   if(req.body.department)updates.department= req.body.department.toLowerCase();
   if (req.body.year) updates.year = Number(req.body.year);
+  if (req.body.organization) {
+  updates.organization = req.body.organization.trim();
+}
 
   if(Object.keys(updates).length === 0){
       throw new ApiError(400, "At least one field is required");

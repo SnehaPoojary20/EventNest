@@ -54,6 +54,11 @@ const eventSchema = new Schema(
       type: [String],  
       default: [],
     },
+ 
+  collegeRestricted: {
+      type: Boolean,
+      default: false,
+    },
   },
   
   {

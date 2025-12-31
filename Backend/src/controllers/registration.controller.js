@@ -1,9 +1,8 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import {Registration} from "../models/registration.model.js"
-import { uploadToCloudinary } from "../utils/cloudinary.js";
+import {Event} from "../models/event.model.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
-import { passwordValidator } from "../utils/passwordValidator.js";
 
 
 
@@ -15,10 +14,26 @@ const createRegistration = asyncHandler(async (req, res) => {
     throw new ApiError(400, "eventId and status are required");
   }
 
-  const existingRegistration = await Registration.findOne({
-    eventId,
-    userId,
-  });
+  // Fetch event
+  const event = await Event.findById(eventId);
+
+  if (!event) {
+    throw new ApiError(404, "Event not found");
+  }
+
+  // Generic restriction check (college / organization / company)
+  if (event.restrictedTo?.type && event.restrictedTo?.value) {
+    const userValue = req.user[event.restrictedTo.type];
+
+    if (!userValue || userValue !== event.restrictedTo.value) {
+      throw new ApiError(
+        403,
+        `Only users from ${event.restrictedTo.value} can register for this event`
+      );
+    }
+  }
+
+  const existingRegistration = await Registration.findOne({ eventId, userId });
 
   if (existingRegistration) {
     throw new ApiError(409, "User already registered");
@@ -32,9 +47,9 @@ const createRegistration = asyncHandler(async (req, res) => {
     registrationTime: new Date(),
   });
 
-  return res.status(201).json(
-    new ApiResponse(201, registration, "Registration created successfully")
-  );
+  return res
+    .status(201)
+    .json(new ApiResponse(201, registration, "Registration created successfully"));
 });
 
 

@@ -32,6 +32,12 @@ const userSchema = new Schema(
         default: "",
     },
 
+   organization: {
+        type: String,
+        required: true,
+        trim: true
+   },
+
    role:{
       type: String,
       enum: ["student", "organizer", "admin"],
@@ -82,9 +88,11 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 userSchema.methods.generateAccessToken = function (){
     return jwt.sign(
       {
-         _id : this._id,
-         email : this.email,
-         username : this.username 
+         _id: this._id,
+         email: this.email,
+         username: this.username,
+         organization: this.organization,
+         role: this.role
       },
 
       process.env.ACCESS_TOKEN_SECRET,
@@ -99,7 +107,7 @@ userSchema.methods.generateAccessToken = function (){
 userSchema.methods.generateRefreshToken = function (){
      return jwt.sign(
       {
-         _id:this.id
+         _id: this._id,
       },
 
       process.env.REFRESH_TOKEN_SECRET,{
