@@ -306,36 +306,37 @@ const updateProfilePic = asyncHandler (async (req,res)=>{
 
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-  const { username, email, department, year } = req.body;
 
-  if (!username || !email || !department || !year) {
-    throw new ApiError(400, "All fields are required");
+  const updates={};
+
+  if(req.body.username) updates.username = req.body.username.toLowerCase();
+  if(req.body.email)updates.email=req.body.email.toLowerCase();
+  if(req.body.department)updates.department= req.body.department.toLowerCase();
+  if (req.body.year) updates.year = Number(req.body.year);
+
+  if(Object.keys(updates).length === 0){
+      throw new ApiError(400, "At least one field is required");
   }
 
   const updatedUser = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: {
-        username: username.toLowerCase(),
-        email: email.toLowerCase(),
-        department,
-        year
-      }
-    },
-    { new: true }
-  ).select("-password -refreshToken");
+    req.user._id,
+    {$set :updates},
+    {new:true}
+  ).select("-password -refreshToken")
 
   if (!updatedUser) {
     throw new ApiError(404, "User not found");
   }
 
-  return res.status(200).json(
+  return res
+  .status(200)
+  .json(
     new ApiResponse(200, updatedUser, "Account details updated successfully")
   );
 });
 
 
-export { generateAccessAndRefreshToken, loginUser, logoutUser, changeCurrentPassword, getCurrentUser, updateProfilePic, updateAccountDetails}
+export {registerUser, generateAccessAndRefreshToken, loginUser, logoutUser, changeCurrentPassword, getCurrentUser, updateProfilePic, updateAccountDetails}
 
 // generate access and refresh token
 // register user
