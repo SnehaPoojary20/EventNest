@@ -30,7 +30,7 @@ const eventSchema = new Schema(
       required: true,
     },
 
-    venue: {
+    venue : {
       type: String,
       required: true,
     },
@@ -66,4 +66,4 @@ const eventSchema = new Schema(
      }
 );
 
-export const even = mongoose.model("Event",eventSchema);
+export const Event = mongoose.model("Event",eventSchema);
