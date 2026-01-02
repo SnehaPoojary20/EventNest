@@ -26,6 +26,21 @@ const feedbackSchema = new Schema(
       type: String,
       trim: true,
     },
+
+    taggedUsers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    // Event images
+    images: [
+      {
+        url: String,
+        publicId: String,
+      },
+    ],
   },
   { timestamps: true }
 );
