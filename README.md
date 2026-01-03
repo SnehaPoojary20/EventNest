@@ -40,15 +40,15 @@ Libraries & Tools: qrcode.react, Nodemailer, Chart.js
 Deployment: Vercel
 
 ## Architecture Overview
-Frontend communicates with backend via REST APIs
+- Frontend communicates with backend via REST APIs
 
-Express.js manages routing, middleware, and role-based authorization
+- Express.js manages routing, middleware, and role-based authorization
 
-MongoDB stores users, events, and registration data
+- MongoDB stores users, events, and registration data
 
-QR codes are generated on registration and validated during check-in
+- QR codes are generated on registration and validated during check-in
 
-Chart.js powers real-time visual dashboards for administrators
+- Chart.js powers real-time visual dashboards for administrators
 
 Setup Instructions
 
