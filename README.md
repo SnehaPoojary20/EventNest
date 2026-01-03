@@ -50,17 +50,17 @@ Deployment: Vercel
 
 - Chart.js powers real-time visual dashboards for administrators
 
-Setup Instructions
+## Setup Instructions
 
-Clone the repository
+- Clone the repository
 
-Install dependencies using npm install
+- Install dependencies using npm install
 
-Configure environment variables
+- Configure environment variables
 
-Start the backend server
+- Start the backend server
 
-Run the frontend client
+- Run the frontend client
 
 ## Future Scope
 
